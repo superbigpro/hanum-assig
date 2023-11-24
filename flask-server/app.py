@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, json, make_response
 from flask_restful import Resource, Api
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import validates
 from datetime import datetime
 import pymysql
 
@@ -32,13 +33,20 @@ class Board(db.Model):
         # self.comments = comments
         # self.addedDate = addedDate
         
-    def serialize(self):
+    def serializeForHome(self):
         return {
             "id": self.id,
             "title": self.title,
-            "content": self.content,
             "author": self.author,
             # "uploadAt": self.uploadAt.isoformat()
+        }
+        
+    def serializeForDetail(self):
+        return {   
+            "id": self.id,
+            "title": self.title,
+            "author": self.author,
+            "content": self.content, 
         }
     
     def __repr__(self): # title return 
@@ -54,7 +62,7 @@ class Board(db.Model):
 def getjson():
     if request.method == 'GET': # 테스트 코드 (작동함)
         all_posts = Board.query.all()
-        posts = [post.serialize() for post in all_posts]
+        posts = [post.serializeForHome() for post in all_posts]
 
         result = {
             "posts": posts
@@ -65,26 +73,28 @@ def getjson():
     if request.method == 'POST':
         data = request.json  # 요청에서 JSON 데이터 가져오기
 
-        # 요청에 필요한 파라미터가 있는지 확인
+        # 파라미터가 비어있는지 확인 
         params = ['title', 'content', 'author', 'password']
         for param in params:
             if param not in data:
                 return make_response(jsonify('파라미터가 완전하지 않습니다.'), 400)
             
+        # 파라미터가 중복인지 확인 
         title = data['title']
         if Board.is_duplicate_title(title):
             return make_response(jsonify('중복된 제목입니다.'), 409)
+        
+        # Validator 추가 예정 
 
         new_board = Board(
             title=data['title'],
-            content=data['content'],
-            author=data.get('author', ''),  
-            password=data.get('password', ''),  
+            author=data.get('author'), 
+            content=data['content'], 
+            password=data.get('password'),  
             # commentId=data.get('commentId', 0),  # 선택기능
             # comments=data.get('comments', 0),  # '' 
             # addedDate=datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # '' , iso 포맷으로 처리 
         )
-        
 
         db.session.add(new_board)  # 새로운 데이터 추가
         db.session.commit()  # 커밋
@@ -94,6 +104,23 @@ def getjson():
         }
 
         return make_response(jsonify(result), 200)
+    
+@app.route('/posts/<int:board_id>', methods=['POST'])
+def removepost(board_id):
+    if request.method == 'POST':
+        password = request.args.get("password")  # URL에서 password 파라미터 가져오기
+
+        board = Board.query.get(board_id)  # 게시물 조회
+
+        if board is None:
+            return jsonify({"error": "게시물을 찾을 수 없습니다."}), 404
+
+        if board.password == password:  # 비밀번호 일치 여부 확인
+            db.session.delete(board)  # 게시물 삭제
+            db.session.commit() # 커밋 
+            return jsonify({"ok": True, "message": "게시물이 삭제되었습니다."}), 200 
+        else:
+            return jsonify({"ok": False, "error": "비밀번호가 일치하지 않습니다."}), 403
 
 if __name__ == "__main__":
     app.run(debug=True)
