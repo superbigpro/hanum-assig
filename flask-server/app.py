@@ -6,7 +6,7 @@ import pymysql
 
 app = Flask(__name__)
 api = Api(app)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:dldusdn1105@127.0.0.1:5000/intern_board'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:dldusdn1105@localhost:3306/intern_board'
 # 기존의 import 및 설정 부분
 
 db = SQLAlchemy(app)
@@ -49,22 +49,22 @@ def getjson():
         params = ['title', 'content', 'author', 'password']
         for param in params:
             if param not in data:
-                return make_response(jsonify('파라미터가 부족합니다.'), 400)
+                return make_response(jsonify('파라미터가 완전하지 않습니다.'), 400)
 
         new_board = Board(
             title=data['title'],
             content=data['content'],
-            author=data.get('author', ''),  # 필요에 따라 작성자는 선택적으로 처리 가능
-            password=data.get('password', ''),  # 필요에 따라 비밀번호도 선택적으로 처리 가능
-            # commentId=data.get('commentId', 0),  # 필요에 따라 0 또는 다른 기본값으로 처리 가능
-            # comments=data.get('comments', 0),
-            # addedDate=datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # 현재 시간으로 처리
+            author=data.get('author', ''),  
+            password=data.get('password', ''),  
+            # commentId=data.get('commentId', 0),  # 선택기능
+            # comments=data.get('comments', 0),  # '' 
+            # addedDate=datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # '' , iso 포맷으로 처리 
         )
 
         db.session.add(new_board)  # 새로운 데이터 추가
         db.session.commit()  # 커밋
 
-        result = {
+        result = { # 반환할 json 
             "result": "OK"
         }
 
