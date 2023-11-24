@@ -19,11 +19,11 @@ class Board(db.Model):
     content = db.Column(db.String(2000), nullable=False)
     author = db.Column(db.String(20), nullable=False)
     password = db.Column(db.String(25), nullable=False)
-    # commentId = db.Column(db.Integer, nullable=False)
-    # comments = db.Column(db.Integer, nullable=False)
-    # addedDate = db.Column(db.String(30), nullable=False)
+    # commentId = db.Column(db.Integer, nullable=False) # 선 
+    # comments = db.Column(db.Integer, nullable=False) #  택 
+    # addedDate = db.Column(db.String(30), nullable=False)# 기능
 
-    def __init__(self, title, content, author, password, commentId, comments, addedDate):
+    def __init__(self, title, content, author, password): # init 생성 (보류 : , commentId, comments, addedDate)
         self.title = title
         self.content = content
         self.author = author
@@ -32,8 +32,13 @@ class Board(db.Model):
         # self.comments = comments
         # self.addedDate = addedDate
     
-    def __repr__(self):
+    def __repr__(self): # title return 
         return '<Board %r>' % self.title
+    
+    @classmethod
+    def is_duplicate_title(cls, title):
+        return bool(cls.query.filter_by(title=title).first())
+
 
 
 @app.route('/posts', methods=['GET', 'POST'])
@@ -50,6 +55,10 @@ def getjson():
         for param in params:
             if param not in data:
                 return make_response(jsonify('파라미터가 완전하지 않습니다.'), 400)
+            
+        title = data['title']
+        if Board.is_duplicate_title(title):
+            return make_response(jsonify('중복된 제목입니다.'), 409)
 
         new_board = Board(
             title=data['title'],
@@ -60,12 +69,13 @@ def getjson():
             # comments=data.get('comments', 0),  # '' 
             # addedDate=datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # '' , iso 포맷으로 처리 
         )
+        
 
         db.session.add(new_board)  # 새로운 데이터 추가
         db.session.commit()  # 커밋
 
         result = { # 반환할 json 
-            "result": "OK"
+            "postId": new_board.id
         }
 
         return make_response(jsonify(result), 200)
