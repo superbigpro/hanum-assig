@@ -1,8 +1,10 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, json, make_response
+from flask_restful import Resource, Api
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 
 app = Flask(__name__)
+api = Api(app)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:dldusdn1105@127.0.0.1:5000/intern_board'
 db = SQLAlchemy(app)
 
@@ -37,7 +39,30 @@ def getjson():
         return jsonify(data)
 
     if request.method == 'POST':
-        pass
+         data = json.loads(request.data) # 요청 data 가져오기
+
+    params = ['title', 'content'] # tabla column 체크
+
+    for param in params:
+        if param not in data:
+            return make_response(jsonify('Parameters are not enough.'), 400)
+
+
+
+    Board = boards()
+
+    Board.groupname = data['groupname']
+    Board.permission = data['permission']
+
+
+    db.session.add(Board) # db에 추가
+    db.session.commit()   # commit
+
+    result = {
+      "result": "OK"
+    }
+
+    return make_response(jsonify(result), 200)      
 
 if __name__ == "__main__":
     app.run(debug=True)
