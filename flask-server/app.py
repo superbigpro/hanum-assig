@@ -31,6 +31,15 @@ class Board(db.Model):
         # self.commentId = commentId
         # self.comments = comments
         # self.addedDate = addedDate
+        
+    def serialize(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "content": self.content,
+            "author": self.author,
+            # "uploadAt": self.uploadAt.isoformat()
+        }
     
     def __repr__(self): # title return 
         return '<Board %r>' % self.title
@@ -44,8 +53,14 @@ class Board(db.Model):
 @app.route('/posts', methods=['GET', 'POST'])
 def getjson():
     if request.method == 'GET': # 테스트 코드 (작동함)
-        data = {"dsa": "dsafgwWDFDWWDWD"}
-        return jsonify(data)
+        all_posts = Board.query.all()
+        posts = [post.serialize() for post in all_posts]
+
+        result = {
+            "posts": posts
+        }
+
+        return jsonify(result)
 
     if request.method == 'POST':
         data = request.json  # 요청에서 JSON 데이터 가져오기
