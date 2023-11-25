@@ -34,8 +34,6 @@ class Board(db.Model):
     comments = relationship("Comment", back_populates="board")
     uploadedClock = db.Column(db.DateTime, nullable=False, default=datetime.utcnow().isoformat())
     
-    # comments = relationship("Comment", backref="board", lazy=True)  # comments 관계 추가
-    
     def __init__(self, title, content, author, password, uploadClock):
         self.title = title
         self.content = content
@@ -87,7 +85,7 @@ class Comment(db.Model):
         self.board_id = board_id
 
     
-    def __repr__(self): # title return 
+    def __repr__(self): # title 반환
         return '<Board %r>' % self.title
     
     def serialize(self): # Comment 직렬화 함수 
@@ -164,7 +162,7 @@ def removepost(board_id):
         detail_posts = Board.query.get(board_id)
         serialized_post = detail_posts.serializeForDetail() # 직렬화된 포스트 가져오기 
 
-        result = {
+        result = { 
             "posts": serialized_post
         }
 
@@ -219,17 +217,17 @@ def reple(board_id):
             board_id=board_id
         )
 
-        db.session.add(new_comment)
-        db.session.commit()
+        db.session.add(new_comment) # 댓글 추가
+        db.session.commit() #커밋
 
         return jsonify({"commentId": new_comment.id}), 201
        
-@app.route('/posts/<int:board_id>/comments/<comment_id>', methods=['DELETE'])
+@app.route('/posts/<int:board_id>/comments/<comment_id>', methods=['DELETE']) # 코멘트 삭제
 def deletecomm(board_id, comment_id):
-    if request.method == 'DELETE':
-        password = request.args.get('password')
+    if request.method == 'DELETE': 
+        password = request.args.get('password') # URL 파라미터 가져오기
         if not password:
-            abort(400, description="비밀번호가 필요합니다.")
+            abort(400, description="비밀번호가 필요합니다.") 
 
         comment = Comment.query.get(comment_id)
         if not comment:
