@@ -186,18 +186,14 @@ def reple(board_id):
         
     if request.method == 'POST':
         board = Board.query.filter_by(id=board_id).first()
-        
         if not board: # 게시물이 없을 때 
             abort(404, description="게시물을 찾을 수 없습니다.")
-        
         data = request.json  # 요청에서 JSON 데이터 가져오기
-        
-        expected_params = ['content', 'author', 'password']
-
-        for param in expected_params:
+        params = ['content', 'author', 'password']
+        for param in params:
             if param not in data:
                 return make_response(jsonify("파라미터가 완전하지 않습니다"), 400)
-                
+
         new_comment = Comment(
             content=data['content'],
             author=data['author'],
@@ -210,6 +206,29 @@ def reple(board_id):
 
         return jsonify({"commentId": new_comment.id}), 201
        
+@app.route('/posts/<int:board_id>/comments/<comment_id>', methods=['DELETE'])
+def deletecomm(board_id, comment_id):
+    if request.method == 'DELETE':
+        password = request.args.get('password')
+        if not password:
+            abort(400, description="비밀번호가 필요합니다.")
+
+        comment = Comment.query.get(comment_id)
+        if not comment:
+            abort(404, description="댓글을 찾을 수 없습니다.")
+        
+        board = Board.query.get(board_id)
+        if not board:
+            abort(404, description="게시물을 찾을 수 없습니다.")
+
+        # 댓글의 게시물과 입력된 비밀번호를 확인하여 삭제 여부 결정
+        if board.password == password:  
+            db.session.delete(comment)  # 댓글 삭제
+            db.session.commit()  # 커밋
+            return jsonify({"ok": True, "message": "댓글이 삭제되었습니다."}), 200
+        else:
+            return jsonify({"ok": False, "error": "비밀번호가 일치하지 않습니다."}), 403
+            
     
 if __name__ == "__main__":
     app.run(debug=True)
