@@ -1,18 +1,29 @@
-from flask import Flask, request, jsonify, json, make_response, abort
+from flask import Flask, request, jsonify, make_response, abort
 from flask_restful import Resource, Api
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 from sqlalchemy.orm import validates, relationship
-from datetime import datetime
 from datetime import datetime
 from sqlalchemy import ForeignKey
 import pymysql
+import json
 
 app = Flask(__name__)
 api = Api(app)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:dldusdn1105@localhost:3306/intern_board'
 
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 
+class CustomJSONEncoder(json.JSONEncoder): # ISO 포맷팅을 위한 커스텀 직렬화 인코더
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3]  
+        return json.JSONEncoder.default(self, obj)
+
+app.json_encoder = CustomJSONEncoder 
+
+# board model 
 class Board(db.Model):
     __tablename__ = 'boards'
     id = db.Column(db.Integer, primary_key=True, nullable=False, autoincrement=True)
@@ -21,34 +32,42 @@ class Board(db.Model):
     author = db.Column(db.String(20), nullable=False)
     password = db.Column(db.String(25), nullable=False)
     comments = relationship("Comment", back_populates="board")
+    uploadedClock = db.Column(db.DateTime, nullable=False, default=datetime.utcnow().isoformat())
     
     # comments = relationship("Comment", backref="board", lazy=True)  # comments 관계 추가
     
-    def __init__(self, title, content, author, password, board_id):
+    def __init__(self, title, content, author, password, uploadClock):
         self.title = title
         self.content = content
         self.author = author
         self.password = password
-        self.board_id = board_id
+        self.uploadClock = uploadClock
         
-    def serializeForHome(self): # 직렬화 
+    def serializeForHome(self): # Board 직렬화 함수 ( 메인 페이지 )
         return {   
             "id": self.id,
             "title": self.title,
             "author": self.author,
             "content": self.content,
-            "comments": len(self.comments)
+            "comments": len(self.comments),
+            "uploadedClock": self.uploadedClock.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] if self.uploadedClock else None
         }
+
         
-    def serializeForDetail(self): # ''
+    def serializeForDetail(self): # Board 직렬화 함수 ( 상세 페이지 )
         return {   
             "id": self.id,
             "title": self.title,
             "author": self.author,
             "content": self.content,
-            "comments":[comment.serialize() for comment in self.comments]
-            
+            "comments":[comment.serialize() for comment in self.comments],
+            "uploadedClock": self.uploadedClock.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] if self.uploadedClock else None
         }
+        
+    @classmethod # title 중복 확인 ( 게시글 업로드 )
+    def is_duplicate_title(cls, title): 
+        return bool(cls.query.filter_by(title=title).first())
+    
     
 # Comment 모델
 class Comment(db.Model):
@@ -71,16 +90,12 @@ class Comment(db.Model):
     def __repr__(self): # title return 
         return '<Board %r>' % self.title
     
-    def serialize(self):
+    def serialize(self): # Comment 직렬화 함수 
         return {
             "id": self.id,
             "author": self.author,
             "content": self.content,
         }
-    
-    @classmethod # title 중복 확인
-    def is_duplicate_title(cls, title): 
-        return bool(cls.query.filter_by(title=title).first())
     
 
 @app.route('/posts', methods=['GET', 'POST']) # 추가, 목록 조회
@@ -116,7 +131,7 @@ def getjson():
             author=data.get('author'), 
             content=data['content'], 
             password=data.get('password'),
-            id=board_id
+            uploadClock=datetime.utcnow()  # uploadClock는 현재 시간으로 설정
         )
 
         db.session.add(new_board)  # 새로운 데이터 추가
@@ -145,9 +160,9 @@ def removepost(board_id):
         else:
             return jsonify({"ok": False, "error": "비밀번호가 일치하지 않습니다."}), 403
         
-    if request.method == 'GET':
+    if request.method == 'GET': # 상세페이지 불러오기 
         detail_posts = Board.query.get(board_id)
-        serialized_post = detail_posts.serializeForDetail()
+        serialized_post = detail_posts.serializeForDetail() # 직렬화된 포스트 가져오기 
 
         result = {
             "posts": serialized_post
@@ -169,7 +184,7 @@ def reple(board_id):
                 "content": board.content,
                 "comments": [] 
             }
-
+            
             # 해당 게시글에 대한 댓글 가져오기
             for comment in board.comments:
                 comment_info = {
@@ -180,16 +195,19 @@ def reple(board_id):
                 }
                 post_info["comments"].append(comment_info)  # 댓글 정보를 게시글 정보에 추가
 
-            return jsonify({"post": post_info})
+            return jsonify({"post": post_info}) # post 반환
         else:
-            return jsonify({"message": "게시글을 찾을 수 없습니다."}), 404
+            return jsonify({"message": "게시글을 찾을 수 없습니다."}), 404 
         
     if request.method == 'POST':
         board = Board.query.filter_by(id=board_id).first()
+        
         if not board: # 게시물이 없을 때 
             abort(404, description="게시물을 찾을 수 없습니다.")
+            
         data = request.json  # 요청에서 JSON 데이터 가져오기
         params = ['content', 'author', 'password']
+        
         for param in params:
             if param not in data:
                 return make_response(jsonify("파라미터가 완전하지 않습니다"), 400)
@@ -221,7 +239,7 @@ def deletecomm(board_id, comment_id):
         if not board:
             abort(404, description="게시물을 찾을 수 없습니다.")
 
-        # 댓글의 게시물과 입력된 비밀번호를 확인하여 삭제 여부 결정
+        # 비밀번호 검사
         if board.password == password:  
             db.session.delete(comment)  # 댓글 삭제
             db.session.commit()  # 커밋
