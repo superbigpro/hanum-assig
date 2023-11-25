@@ -55,8 +55,7 @@ class Board(db.Model):
     @classmethod
     def is_duplicate_title(cls, title):
         return bool(cls.query.filter_by(title=title).first())
-
-
+    
 
 @app.route('/posts', methods=['GET', 'POST'])
 def getjson():
@@ -105,7 +104,7 @@ def getjson():
 
         return make_response(jsonify(result), 200)
     
-@app.route('/posts/<int:board_id>', methods=['POST'])
+@app.route('/posts/<int:board_id>', methods=['POST', 'GET'])
 def removepost(board_id):
     if request.method == 'POST':
         password = request.args.get("password")  # URL에서 password 파라미터 가져오기
@@ -121,6 +120,18 @@ def removepost(board_id):
             return jsonify({"ok": True, "message": "게시물이 삭제되었습니다."}), 200 
         else:
             return jsonify({"ok": False, "error": "비밀번호가 일치하지 않습니다."}), 403
+        
+    if request.method == 'GET':
+        detail_posts = Board.query.get(board_id)
+        serialized_post = detail_posts.serializeForDetail()
+
+        result = {
+            "posts": serialized_post
+        }
+
+        return jsonify(result)
+
+# @app.route('/posts/<int:board_id>/comments')
 
 if __name__ == "__main__":
     app.run(debug=True)
