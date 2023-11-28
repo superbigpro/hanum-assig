@@ -99,11 +99,16 @@ class Comment(db.Model):
 @app.route('/posts', methods=['GET', 'POST']) # 추가, 목록 조회
 def getjson():
     if request.method == 'GET': # 목록 조회 
-        all_posts = Board.query.all()
-        posts = [post.serializeForHome() for post in all_posts]
+        
+        limit = request.args.get('limit', default=10, type=int)
+        page = request.args.get('page', default=1, type=int)
+        
+        all_posts = Board.query.paginate(page=page, per_page=limit)
+        posts = [post.serializeForHome() for post in all_posts.items]
 
         result = {
-            "posts": posts
+            "posts": posts,
+            "pageCount": all_posts.pages  # 전체 페이지 수
         }
 
         return jsonify(result)
