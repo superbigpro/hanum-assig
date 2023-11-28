@@ -105,6 +105,9 @@ def getjson():
         
         all_posts = Board.query.paginate(page=page, per_page=limit)
         posts = [post.serializeForHome() for post in all_posts.items]
+        
+        if not posts:
+            return jsonify({"message": "아직 게시글이 없어요!"})
 
         result = {
             "posts": posts,
