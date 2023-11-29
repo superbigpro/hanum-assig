@@ -15,14 +15,6 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:dldusdn1105@localh
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
-class CustomJSONEncoder(json.JSONEncoder): # ISO 포맷팅을 위한 커스텀 직렬화 인코더
-    def default(self, obj):
-        if isinstance(obj, datetime):
-            return obj.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3]  
-        return json.JSONEncoder.default(self, obj)
-
-app.json_encoder = CustomJSONEncoder 
-
 # board model 
 class Board(db.Model):
     __tablename__ = 'boards'
@@ -59,14 +51,13 @@ class Board(db.Model):
             "author": self.author,
             "content": self.content,
             "comments":[comment.serialize() for comment in self.comments],
-            "uploadedClock": self.uploadedClock.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] if self.uploadedClock else None
+            "uploadedClock": self.uploadedClock.strftime('%Y-%m-%dT%H:%M:%S.%f') if self.uploadedClock else None
         }
         
     @classmethod # title 중복 확인 ( 게시글 업로드 )
     def is_duplicate_title(cls, title): 
         return bool(cls.query.filter_by(title=title).first())
-    
-    
+
 # Comment 모델
 class Comment(db.Model):
     __tablename__ = 'comments'
@@ -133,9 +124,9 @@ def getjson():
         # Validator 추가 예정 
 
         new_board = Board(
-            title=data['title'],
+            title=data.get('title'),
             author=data.get('author'), 
-            content=data['content'], 
+            content=data.get('content'), 
             password=data.get('password'),
             uploadClock=datetime.utcnow()  # uploadClock는 현재 시간으로 설정
         )
@@ -219,9 +210,9 @@ def reple(board_id):
                 return make_response(jsonify("파라미터가 완전하지 않습니다"), 400)
 
         new_comment = Comment(
-            content=data['content'],
-            author=data['author'],
-            password=data['password'],
+            content=data.get('content'),
+            author=data.get('author'),
+            password=data.get('password'),
             board_id=board_id
         )
 
