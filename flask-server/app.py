@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, make_response, abort
 from flask_restful import Resource, Api
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from sqlalchemy.orm import validates, relationship
+from sqlalchemy.orm import relationship
 from datetime import datetime
 from sqlalchemy import ForeignKey
 import pymysql
@@ -33,7 +33,7 @@ class Board(db.Model):
         self.password = password
         self.uploadClock = uploadClock
         
-    def serializeForHome(self): # Board 직렬화 함수 ( 메인 페이지 )
+    def serializeForHome(self): # Board 직렬화 인스턴스 메서드 ( 메인 페이지 )
         return {   
             "id": self.id,
             "title": self.title,
@@ -44,7 +44,7 @@ class Board(db.Model):
         }
 
         
-    def serializeForDetail(self): # Board 직렬화 함수 ( 상세 페이지 )
+    def serializeForDetail(self): # Board 직렬화 인스턴스 메서드 ( 상세 페이지 )
         return {   
             "id": self.id,
             "title": self.title,
@@ -118,12 +118,12 @@ def getjson():
             
         # 파라미터가 중복인지 확인 
         title = data['title']
-        if Board.is_duplicate_title(title):
+        if Board.is_duplicate_title(title): 
             return make_response(jsonify('중복된 제목입니다.'), 409)
         
         # Validator 추가 예정 
 
-        new_board = Board(
+        new_board = Board( # 객체 만들기
             title=data.get('title'),
             author=data.get('author'), 
             content=data.get('content'), 
@@ -145,7 +145,7 @@ def removepost(board_id):
     if request.method == 'DELETE':
         password = request.args.get("password")  # URL에서 password 파라미터 가져오기
 
-        board = Board.query.get(board_id)  # 게시물 조회
+        board = Board.query.get(board_id)  # 게시물 조회 ( .get 메서드로 메인 키 조회 )
 
         if board is None:
             return jsonify({"error": "게시물을 찾을 수 없습니다."}), 404
@@ -158,7 +158,7 @@ def removepost(board_id):
             return jsonify({"ok": False, "error": "비밀번호가 일치하지 않습니다."}), 403
         
     if request.method == 'GET': # 상세페이지 불러오기 
-        detail_posts = Board.query.get(board_id)
+        detail_posts = Board.query.get(board_id) # .get 으로 메인 키 조회
         serialized_post = detail_posts.serializeForDetail() # 직렬화된 포스트 가져오기 
 
         result = { 
@@ -179,7 +179,7 @@ def reple(board_id):
                 "title": board.title,
                 "author": board.author,
                 "content": board.content,
-                "comments": [] 
+                "comments": []  
             }
             
             # 해당 게시글에 대한 댓글 가져오기
@@ -197,7 +197,7 @@ def reple(board_id):
             return jsonify({"message": "게시글을 찾을 수 없습니다."}), 404 
         
     if request.method == 'POST':
-        board = Board.query.filter_by(id=board_id).first()
+        board = Board.query.get(board_id)
         
         if not board: # 게시물이 없을 때 
             abort(404, description="게시물을 찾을 수 없습니다.")
