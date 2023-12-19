@@ -79,7 +79,7 @@ class Comment(db.Model):
     def __repr__(self): # title 반환
         return '<Board %r>' % self.title
     
-    def serialize(self): # Comment 직렬화 함수 
+    def serialize(self): # Comment 직렬화 인스턴스 메서드
         return {
             "id": self.id,
             "author": self.author,
@@ -173,7 +173,7 @@ def reple(board_id):
         board = Board.query.filter_by(id=board_id).first()    
         
         if board:
-            # 게시글 정보 가져오기
+            # 게시글 직렬화
             post_info = {
                 "id": board.id,
                 "title": board.title,
@@ -182,13 +182,12 @@ def reple(board_id):
                 "comments": []  
             }
             
-            # 해당 게시글에 대한 댓글 가져오기
+            # 해당 게시글 직렬화
             for comment in board.comments:
                 comment_info = {
                     "id": comment.id,
                     "author": comment.author,
-                    "content": comment.content,
-                    "uploadedAt": comment.uploaded_at.strftime("%Y-%m-%dT%H:%M:%S")  # 날짜 포맷 변경
+                    "content": comment.content, 
                 }
                 post_info["comments"].append(comment_info)  # 댓글 정보를 게시글 정보에 추가
 
